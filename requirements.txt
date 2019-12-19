@@ -1,4 +1,4 @@
-bcoding==1
+bcoding==1.5
 bitstring == 3.1.5
 PyPubSub == 3.3.0
 requests >= 2.20.0

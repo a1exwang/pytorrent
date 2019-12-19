@@ -35,12 +35,11 @@ class Tracker(object):
 
     def get_peers_from_trackers(self):
         for i, tracker in enumerate(self.torrent.announce_list):
-            """
-            if tracker[0][:4] == "http":
-                p = Process(target=self.http_scraper, args=(self.q, self.torrent, tracker[0],))
-                self.threads_list.append(p)
-                p.start()
-            """
+            if tracker[0].startswith("http"):
+                self.http_scraper(self.torrent, tracker[0],)
+                # p = threading.Thread(target=self.http_scraper, args=(self.torrent, tracker[0],))
+                # self.threads_list.append(p)
+                # p.start()
 
             if len(self.dict_sock_addr) >= MAX_PEERS_TRY_CONNECT:
                 break
@@ -77,19 +76,24 @@ class Tracker(object):
             'uploaded': 0,
             'downloaded': 0,
             'left': torrent.total_length,
-            'event': 'started'
+            'event': 'started',
+            'port': 0,
         }
 
         try:
             answer_tracker = requests.get(tracker, params=params, timeout=5)
-            list_peers = bdecode(answer_tracker.content)
-            t = UdpTrackerAnnounceOutput()
+            if answer_tracker.status_code != 200:
+                print("Failed tracker '%s', status=%d, body=%s" % (tracker, answer_tracker.status_code, answer_tracker.text))
+            else:
+                list_peers = bdecode(answer_tracker.content)
+                # t = UdpTrackerAnnounceOutput()
+                #
+                # t.from_bytes(list_peers['peers'])
 
-            t.from_bytes(list_peers['peers'])
-
-            for ip, port in list_peers['peers']:
-                s = SockAddr(ip, port)
-                self.dict_sock_addr[s.__hash__()] = s
+                for peer in list_peers['peers']:
+                    s = SockAddr(peer['ip'], peer['port'])
+                    self.dict_sock_addr[s.__hash__()] = s
+            print("Got %d peers from HTTP tracker" % len(self.dict_sock_addr))
 
         except Exception:
             logging.exception("HTTP scraping failed")
